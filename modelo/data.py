@@ -9,6 +9,8 @@ def loadData():
     content = sio.loadmat('SimDataMatrix_Completo.mat')
     data = content['SimDataMatrix']
 
+    data = data.T
+
     #System inputs
     vc = data[2] #input voltage
     vl = data[8] #?
@@ -46,6 +48,13 @@ def dataPreparation(vc,vl,rpm,va,ia):
     ia = scaler.fit_transform(ia)
 
     #Split into train and test sets
-    x_train, x_test = vc[:45000], vc[:45001:]
+    x_train, x_test = vc[:45000], vc[45000:]
 
-    y_train, y_test = rpm[:45000], rpm[45001:]
+    y_train, y_test = rpm[:45000], rpm[45000:]
+
+    return x_train, x_test, y_train, y_test
+
+if __name__ == '__main__':
+    vc, vl, rpm, va, ia = loadData()
+    x_train, x_test, y_train, y_test = dataPreparation(vc,vl,rpm,va,ia)
+

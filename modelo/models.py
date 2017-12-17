@@ -15,10 +15,6 @@ def build_model(x_train,x_test,y_train,y_test):
     :return: LSTM model
     '''
 
-    #Reshape data (only for test)
-
-    x_train = x_train.reshape(x_train.shape[0], 1, 1)
-    x_test = x_test.reshape(x_test.shape[0], 1, 1)
 
     model = Sequential()
     model.add(LSTM(50, input_shape=(x_train.shape[1], x_train.shape[2])))

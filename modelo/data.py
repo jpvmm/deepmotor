@@ -1,6 +1,10 @@
 import scipy.io as sio
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+from pandas import DataFrame
+from pandas import concat
+from sklearn.preprocessing import MinMaxScaler
+
 
 def loadData():
     ''' Load the data from .mat file'''
@@ -11,50 +15,95 @@ def loadData():
 
     data = data.T
 
+    #Scale the feature between (0,1)
+    scaler = MinMaxScaler(feature_range=(0,1))
+    data_scaled =  scaler.fit_transform(data[0:8]) #Normalize all features less the vl
+
     #System inputs
-    vc = data[2] #input voltage
-    vl = data[8] #?
+    vc = data_scaled[2] #input voltage
+    vl = data[8] #Load in the motor
 
     #Outputs
-    rpm = data[5] #rpm of the motor
-    va = data[6] #voltage been applied in the motor
-    ia = data[7] #ouput current
+    rpm = data_scaled[5] #rpm of the motor
+    va = data_scaled[6] #voltage been applied in the motor
+    ia = data_scaled[7] #ouput current
 
     return vc, vl, rpm, va, ia
 
-def dataPreparation(vc,vl,rpm,va,ia):
+def createFrames(vc,vl,rpm,va,ia):
     '''
     This function prepare the data for using in LSTMs
     inputs = the data that need to be prepared
     returns = the data prepared for using in the Keras library
     '''
 
+    #Making Frames to everyone
+    vc_frame = DataFrame()
+    vl_frame = DataFrame()
+    rpm_frame = DataFrame()
+    va_frame = DataFrame()
+    ia_frame = DataFrame()
 
-    #Resphape the inputs to (n_obs, 1)
-    vc = vc.reshape(vc.shape[0], 1)
-    vl = vl.reshape(vl.shape[0], 1)
+    vc_frame['vc(t)'] = vc
+    vl_frame['vl(t)'] = vl
+    rpm_frame['rpm(t)'] = rpm
+    va_frame['va(t)'] = va
+    ia_frame['ia(t)'] = ia
 
-    rpm = rpm.reshape(rpm.shape[0], 1)
-    va = va.reshape(va.shape[0], 1)
-    ia = ia.reshape(ia.shape[0], 1)
+    #input sequence
+    vc_frame['vc(t-1)'] = vc_frame['vc(t)'].shift(1)
+    vl_frame['vl(t-1)'] = vl_frame['vl(t)'].shift(1)
 
-    #Scale the features to a 0,1 range
-    scaler = MinMaxScaler(feature_range=(0, 1))
+    #forecast sequence
 
-    vc = scaler.fit_transform(vc)
-    rpm = scaler.fit_transform(rpm)
-    vl = scaler.fit_transform(vl)
-    va = scaler.fit_transform(va)
-    ia = scaler.fit_transform(ia)
+    rpm_frame['rpm(t+1)'] = rpm_frame['rpm(t)'].shift(-1)
+    va_frame['va(t+1)'] = va_frame['va(t)'].shift(-1)
+    ia_frame['ia(t+1)'] = ia_frame['ia(t)'].shift(-1)
 
-    #Split into train and test sets
-    x_train, x_test = vc[:45000], vc[45000:]
 
-    y_train, y_test = rpm[:45000], rpm[45000:]
+    conc = concat([vc_frame['vc(t-1)'], vl_frame['vl(t-1)'],
+                   rpm_frame['rpm(t+1)'], va_frame['va(t+1)'],
+                   ia_frame['ia(t+1)']], axis=1)
 
-    return x_train, x_test, y_train, y_test
+    conc.dropna(inplace = True)
+
+    return conc
+
+
+def dataPreparation(conc,train_size):
+    ''' Splits Data into train and test sets
+        inputs = Pandas DataFrame containing the data, percentage to training
+        output = train and test sets
+    '''
+
+    #get only the Xs
+    X = conc[['vc(t-1)','vl(t-1)']]
+    X = X.values
+
+    look_back = int(len(X) * train_size)
+
+    x_train, x_test = X[:look_back:], X[look_back:]
+
+    x_train = x_train.reshape(x_train.shape[0],1,x_train.shape[1])
+    x_test = x_test.reshape(x_test.shape[0], 1, x_test.shape[1])
+
+
+
+    #Get the ys
+    y = conc['rpm(t+1)']
+    y = y.values
+
+    y_train, y_test = y[:look_back:], y[look_back:]
+
+
+
+    return x_train,x_test,y_train,y_test
+
+
+
 
 if __name__ == '__main__':
     vc, vl, rpm, va, ia = loadData()
-    x_train, x_test, y_train, y_test = dataPreparation(vc,vl,rpm,va,ia)
+    data = createFrames(vc,vl,rpm,va,ia)
+    x_train,x_test,y_train,y_test = dataPreparation(data,0.6)
 

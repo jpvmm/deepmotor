@@ -17,7 +17,9 @@ def build_model(x_train,x_test,y_train,y_test):
 
 
     model = Sequential()
-    model.add(LSTM(50, input_shape=(x_train.shape[1], x_train.shape[2])))
+    model.add(LSTM(50, return_sequences=True,activation= 'relu', input_shape=(x_train.shape[1], x_train.shape[2])))
+    model.add(LSTM(50, return_sequences=True, activation='relu'))
+    model.add(LSTM(20, activation='relu'))
     model.add(Dense(1))
 
     model.compile(loss='mae', optimizer='adam')
@@ -25,7 +27,7 @@ def build_model(x_train,x_test,y_train,y_test):
 
     tensorboard = TensorBoard(log_dir="logs/{}".format(time()))
 
-    model.fit(x_train, y_train, epochs=50, batch_size=30, validation_data=(x_test, y_test), verbose=1, callbacks=[tensorboard])
+    model.fit(x_train, y_train, epochs=100, batch_size=30, validation_data=(x_test, y_test), verbose=1, callbacks=[tensorboard])
 
 
     return model

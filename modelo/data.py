@@ -30,9 +30,9 @@ def loadData():
 
     return vc, vl, rpm, va, ia
 
-def createFrames(vc,vl,rpm,va,ia):
+def createLaggedFrames(vc,vl,rpm,va,ia):
     '''
-    This function prepare the data for using in LSTMs
+    This function create lagged frames based on the values of input.
     inputs = the data that need to be prepared
     returns = the data prepared for using in the Keras library
     '''
@@ -65,20 +65,48 @@ def createFrames(vc,vl,rpm,va,ia):
                    rpm_frame['rpm(t+1)'], va_frame['va(t+1)'],
                    ia_frame['ia(t+1)']], axis=1)
 
-    conc.dropna(inplace = True)
+    conc.dropna(inplace= True)
 
     return conc
 
 
-def dataPreparation(conc,train_size):
+def createFrames(vc,vl,rpm,va,ia):
+    '''This function creates a data frame without lag in thge data'''
+
+    # Making Frames to everyone
+    vc_frame = DataFrame()
+    vl_frame = DataFrame()
+    rpm_frame = DataFrame()
+    va_frame = DataFrame()
+    ia_frame = DataFrame()
+
+    vc_frame['vc(t)'] = vc
+    vl_frame['vl(t)'] = vl
+    rpm_frame['rpm(t)'] = rpm
+    va_frame['va(t)'] = va
+    ia_frame['ia(t)'] = ia
+
+    conc = concat([vc_frame['vc(t)'], vl_frame['vl(t)'],
+                   rpm_frame['rpm(t)'], va_frame['va(t)'], ia_frame['ia(t)']], axis=1)
+
+    conc.dropna(inplace=True)
+
+    return conc
+
+
+def dataPreparation(conc,train_size, lagged = None):
     ''' Splits Data into train and test sets
         inputs = Pandas DataFrame containing the data, percentage to training
         output = train and test sets
     '''
 
-    #get only the Xs
-    X = conc[['vc(t-1)','vl(t-1)']]
-    X = X.values
+    if lagged == True:
+        #get only the Xs
+        X = conc[['vc(t-1)', 'vl(t-1)']]
+        X = X.values
+    else:
+        X = conc[['vc(t)', 'vl(t)']]
+        X = X.values
 
     look_back = int(len(X) * train_size)
 
@@ -90,8 +118,14 @@ def dataPreparation(conc,train_size):
 
 
     #Get the ys
-    y = conc['rpm(t+1)']
-    y = y.values
+
+    if lagged == True:
+
+        y = conc['rpm(t+1)']
+        y = y.values
+    else:
+        y = conc['rpm(t)']
+        y = y.values
 
     y_train, y_test = y[:look_back:], y[look_back:]
 
@@ -105,5 +139,5 @@ def dataPreparation(conc,train_size):
 if __name__ == '__main__':
     vc, vl, rpm, va, ia = loadData()
     data = createFrames(vc,vl,rpm,va,ia)
-    x_train,x_test,y_train,y_test = dataPreparation(data,0.6)
+    x_train,x_test,y_train,y_test = dataPreparation(data, 0.8)
 
